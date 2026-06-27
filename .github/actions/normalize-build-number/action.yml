@@ -1,0 +1,36 @@
+name: Normalize Build Number
+description: Normalize a Google build number input to digits only.
+
+inputs:
+  build-number:
+    description: Build number in -ab14691759, ab14691759, or 14691759 format.
+    required: true
+
+outputs:
+  value:
+    description: Normalized numeric build number.
+    value: ${{ steps.normalize.outputs.value }}
+
+runs:
+  using: composite
+  steps:
+    - name: Normalize input
+      id: normalize
+      shell: bash
+      env:
+        RAW_BUILD_NUMBER: ${{ inputs.build-number }}
+      run: |
+        set -euo pipefail
+
+        build_number="$(printf '%s' "$RAW_BUILD_NUMBER" | tr -d '[:space:]')"
+        build_number="${build_number#-}"
+        build_number="${build_number#ab}"
+
+        if [[ ! "$build_number" =~ ^[0-9]+$ ]]; then
+          echo "Invalid build number: $RAW_BUILD_NUMBER" >&2
+          echo "Expected formats like -ab14691759, ab14691759, or 14691759." >&2
+          exit 1
+        fi
+
+        echo "value=$build_number" >> "$GITHUB_OUTPUT"
+        echo "Normalized build number: $build_number"

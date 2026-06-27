@@ -1,0 +1,55 @@
+name: Patch Kernel Source
+description: Apply SuSFS, install KernelSU-Next, and prepare the source for a clean stamped build.
+
+inputs:
+  kernel-source-dir:
+    description: Directory containing the synced kernel source.
+    required: true
+  susfs-branch:
+    description: susfs4ksu branch to use.
+    required: true
+  ksu-branch:
+    description: KernelSU-Next branch to install.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Apply SuSFS patch
+      shell: bash
+      working-directory: ${{ inputs.kernel-source-dir }}
+      env:
+        SUSFS_BRANCH: ${{ inputs.susfs-branch }}
+      run: |
+        set -euxo pipefail
+
+        git clone https://gitlab.com/pershoot/susfs4ksu.git -b "$SUSFS_BRANCH" --depth=1
+        cp susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch common/
+        cp susfs4ksu/kernel_patches/fs/* common/fs/
+        cp susfs4ksu/kernel_patches/include/linux/* common/include/linux/
+
+        cd common
+        patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
+
+    - name: Install KernelSU-Next
+      shell: bash
+      working-directory: ${{ inputs.kernel-source-dir }}
+      env:
+        KSU_BRANCH: ${{ inputs.ksu-branch }}
+      run: |
+        set -euxo pipefail
+
+        curl -LSs "https://raw.githubusercontent.com/pershoot/KernelSU-Next/${KSU_BRANCH}/kernel/setup.sh" | bash -s "$KSU_BRANCH"
+
+    - name: Prepare source commit
+      shell: bash
+      working-directory: ${{ inputs.kernel-source-dir }}
+      run: |
+        set -euxo pipefail
+
+        sed -i '/^[[:space:]]*"protected_exports_list"[[:space:]]*:[[:space:]]*"android\/abi_gki_protected_exports_aarch64",$/d' common/BUILD.bazel
+        rm -f common/android/abi_gki_protected_exports_* common/50_add_susfs_in_gki-android14-6.1.patch
+
+        cd common
+        git add -A
+        git commit -m "Patch kernel with KernelSU-Next and SuSFS"

@@ -1,0 +1,78 @@
+name: Build Pixel KSU SuSFS Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Google kernel build number, e.g. -ab14691759"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build kernel
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+    timeout-minutes: 360
+
+    env:
+      KERNEL_SOURCE_DIR: kernel_source
+      MANIFEST_BRANCH: common-android14-6.1
+      SUSFS_BRANCH: gki-android14-6.1-dev
+      KSU_BRANCH: dev-susfs
+
+    steps:
+      - name: Install checkout dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+
+      - name: Check out workflow actions
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        uses: ./.github/actions/install-build-dependencies
+
+      - name: Configure Git
+        uses: ./.github/actions/configure-git
+
+      - name: Normalize build number
+        id: build_number
+        uses: ./.github/actions/normalize-build-number
+        with:
+          build-number: ${{ inputs.build_number }}
+
+      - name: Sync kernel source
+        uses: ./.github/actions/sync-kernel-source
+        with:
+          build-number: ${{ steps.build_number.outputs.value }}
+          kernel-source-dir: ${{ env.KERNEL_SOURCE_DIR }}
+          manifest-branch: ${{ env.MANIFEST_BRANCH }}
+
+      - name: Patch kernel source
+        uses: ./.github/actions/patch-kernel-source
+        with:
+          kernel-source-dir: ${{ env.KERNEL_SOURCE_DIR }}
+          susfs-branch: ${{ env.SUSFS_BRANCH }}
+          ksu-branch: ${{ env.KSU_BRANCH }}
+
+      - name: Build patched kernel
+        uses: ./.github/actions/build-kernel
+        with:
+          kernel-source-dir: ${{ env.KERNEL_SOURCE_DIR }}
+
+      - name: Upload kernel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixel-ksu-susfs-kernel-ab${{ steps.build_number.outputs.value }}
+          if-no-files-found: error
+          path: |
+            ${{ env.KERNEL_SOURCE_DIR }}/out/dist/Image*
+            ${{ env.KERNEL_SOURCE_DIR }}/out/dist/boot*.img

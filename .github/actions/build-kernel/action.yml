@@ -1,0 +1,19 @@
+name: Build Kernel
+description: Clean and build the patched kernel distribution artifacts.
+
+inputs:
+  kernel-source-dir:
+    description: Directory containing the patched kernel source.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Run Kleaf build
+      shell: bash
+      working-directory: ${{ inputs.kernel-source-dir }}
+      run: |
+        set -euxo pipefail
+
+        tools/bazel clean --expunge
+        tools/bazel run --config=fast --config=stamp --lto=thin --verbose_failures //common:kernel_aarch64_dist

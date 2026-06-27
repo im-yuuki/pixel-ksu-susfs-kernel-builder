@@ -1,0 +1,43 @@
+name: Sync Kernel Source
+description: Download the Google manifest and sync the matching kernel source tree.
+
+inputs:
+  build-number:
+    description: Numeric Google kernel build number.
+    required: true
+  kernel-source-dir:
+    description: Directory where the kernel source will be synced.
+    required: true
+  manifest-branch:
+    description: Kernel manifest branch used for repo init.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Download manifest
+      shell: bash
+      env:
+        BUILD_NUMBER: ${{ inputs.build-number }}
+      run: |
+        set -euxo pipefail
+
+        manifest_url="https://ci.android.com/builds/submitted/${BUILD_NUMBER}/kernel_aarch64/latest/manifest_${BUILD_NUMBER}.xml"
+        curl --fail --location --retry 5 --retry-delay 10 \
+          --output "manifest_${BUILD_NUMBER}.xml" \
+          "$manifest_url"
+
+    - name: Sync source tree
+      shell: bash
+      env:
+        BUILD_NUMBER: ${{ inputs.build-number }}
+        KERNEL_SOURCE_DIR: ${{ inputs.kernel-source-dir }}
+        MANIFEST_BRANCH: ${{ inputs.manifest-branch }}
+      run: |
+        set -euxo pipefail
+
+        mkdir "$KERNEL_SOURCE_DIR"
+        cd "$KERNEL_SOURCE_DIR"
+        repo init -u https://android.googlesource.com/kernel/manifest -b "$MANIFEST_BRANCH" --depth=1
+        cp "../manifest_${BUILD_NUMBER}.xml" .repo/manifests/default.xml
+        repo sync -c --no-tags -j"$(nproc)"
