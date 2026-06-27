@@ -1,0 +1,23 @@
+name: Cache Apt Packages
+description: Restore and save apt package archives for faster dependency installation.
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare apt archive cache
+      shell: bash
+      run: |
+        set -euxo pipefail
+
+        rm -f /etc/apt/apt.conf.d/docker-clean
+        printf 'Binary::apt::APT::Keep-Downloaded-Packages "true";\n' > /etc/apt/apt.conf.d/01keep-debs
+        mkdir -p /var/cache/apt/archives/partial
+
+    - name: Restore apt archive cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ runner.os }}-${{ runner.arch }}-ubuntu-latest-v1-${{ hashFiles('.github/actions/install-build-dependencies/action.yml') }}
+        restore-keys: |
+          apt-${{ runner.os }}-${{ runner.arch }}-ubuntu-latest-v1-
+          apt-${{ runner.os }}-${{ runner.arch }}-

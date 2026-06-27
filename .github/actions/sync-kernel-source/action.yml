@@ -22,10 +22,48 @@ runs:
       run: |
         set -euxo pipefail
 
-        manifest_url="https://ci.android.com/builds/submitted/${BUILD_NUMBER}/kernel_aarch64/latest/manifest_${BUILD_NUMBER}.xml"
+        manifest_page_url="https://ci.android.com/builds/submitted/${BUILD_NUMBER}/kernel_aarch64/latest/manifest_${BUILD_NUMBER}.xml"
+        manifest_page="manifest_${BUILD_NUMBER}.html"
+        artifact_url_file="manifest_${BUILD_NUMBER}.url"
+        manifest_file="manifest_${BUILD_NUMBER}.xml"
+
         curl --fail --location --retry 5 --retry-delay 10 \
-          --output "manifest_${BUILD_NUMBER}.xml" \
-          "$manifest_url"
+          --output "$manifest_page" \
+          "$manifest_page_url"
+
+        python3 - "$manifest_page" > "$artifact_url_file" <<'PY'
+        import json
+        import re
+        import sys
+
+        page = open(sys.argv[1], encoding="utf-8").read()
+        match = re.search(r"var JSVariables = (\{.*?\});", page, re.S)
+        if not match:
+            print("Unable to find artifactUrl in Android CI artifact page", file=sys.stderr)
+            sys.exit(1)
+
+        data = json.loads(match.group(1))
+        artifact_url = data.get("artifactUrl")
+        if not artifact_url:
+            print("Android CI artifact page did not include artifactUrl", file=sys.stderr)
+            sys.exit(1)
+
+        print(artifact_url)
+        PY
+
+        curl --fail --location --retry 5 --retry-delay 10 \
+          --output "$manifest_file" \
+          "$(< "$artifact_url_file")"
+
+        python3 - "$manifest_file" <<'PY'
+        import sys
+        import xml.etree.ElementTree as ET
+
+        root = ET.parse(sys.argv[1]).getroot()
+        if root.tag != "manifest":
+            print(f"Expected manifest root tag, got {root.tag!r}", file=sys.stderr)
+            sys.exit(1)
+        PY
 
     - name: Sync source tree
       shell: bash

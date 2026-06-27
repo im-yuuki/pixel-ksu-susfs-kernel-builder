@@ -10,6 +10,10 @@ runs:
         set -euxo pipefail
         export DEBIAN_FRONTEND=noninteractive
 
+        rm -f /etc/apt/apt.conf.d/docker-clean
+        printf 'Binary::apt::APT::Keep-Downloaded-Packages "true";\n' > /etc/apt/apt.conf.d/01keep-debs
+        mkdir -p /var/cache/apt/archives/partial
+
         apt-get update
         apt-get install -y --no-install-recommends \
           android-tools-adb \

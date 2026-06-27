@@ -1,0 +1,27 @@
+name: Cache Build Dependencies
+description: Restore and save Bazel, Kleaf, and Python dependency caches used by the kernel build.
+
+inputs:
+  build-number:
+    description: Numeric Google kernel build number.
+    required: true
+  manifest-branch:
+    description: Kernel manifest branch used for repo init.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Restore build dependency caches
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/bazel
+          ~/.cache/bazelisk
+          ~/.cache/kleaf
+          ~/.cache/pip
+        key: build-deps-${{ runner.os }}-${{ runner.arch }}-${{ inputs.manifest-branch }}-ab${{ inputs.build-number }}-v1-${{ hashFiles('.github/actions/**/action.yml') }}
+        restore-keys: |
+          build-deps-${{ runner.os }}-${{ runner.arch }}-${{ inputs.manifest-branch }}-ab${{ inputs.build-number }}-v1-
+          build-deps-${{ runner.os }}-${{ runner.arch }}-${{ inputs.manifest-branch }}-
+          build-deps-${{ runner.os }}-${{ runner.arch }}-
