@@ -15,5 +15,7 @@ runs:
       run: |
         set -euxo pipefail
 
-        tools/bazel clean --expunge
+        pkill -9 bazel 2>/dev/null || true
+        rm -rf out/.cache out/bazel-* out/dist
+
         tools/bazel run --config=fast --config=stamp --lto=thin --verbose_failures //common:kernel_aarch64_dist
