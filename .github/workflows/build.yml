@@ -35,7 +35,7 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates git zstd
 
       - name: Check out workflow actions
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Normalize build number
         id: build_number
@@ -78,10 +78,9 @@ jobs:
           kernel-source-dir: ${{ env.KERNEL_SOURCE_DIR }}
 
       - name: Upload kernel artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pixel-ksu-susfs-kernel-ab${{ steps.build_number.outputs.value }}
           if-no-files-found: error
           path: |
-            ${{ env.KERNEL_SOURCE_DIR }}/out/dist/Image*
-            ${{ env.KERNEL_SOURCE_DIR }}/out/dist/boot*.img
+            ${{ env.KERNEL_SOURCE_DIR }}/out/dist
